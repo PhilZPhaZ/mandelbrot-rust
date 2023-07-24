@@ -1,6 +1,6 @@
-mod testing;
+mod mandelbrot;
 
-use testing::mandelbrot;
+use mandelbrot::mandelbrot;
 use minifb::{Window, WindowOptions, Key, KeyRepeat};
 use image::Rgb;
 
@@ -52,17 +52,13 @@ fn main() {
         if window.is_key_pressed(Key::Space, KeyRepeat::No) {
             if let Some((x, y)) = window.get_mouse_pos(minifb::MouseMode::Discard) { 
                 zoom(x, y, &mut x_min, &mut x_max, &mut y_min, &mut y_max, 0.5);
-
-                let image = mandelbrot(x_min, x_max, y_min, y_max, WIDTH as u32, HEIGHT as u32);
-
-                for y in 0..HEIGHT {
-                    for x in 0..WIDTH {
-                        let pixel_value: &Rgb<u8> = image.get_pixel(x as u32, y as u32);
-                        let color: u32 = ((pixel_value[0] as u32) << 16) | ((pixel_value[1] as u32) << 8) | pixel_value[2] as u32;
-            
-                        buffer[y * WIDTH + x] = color;
-                    }
-                }
+                buffer = update_buffer(x_min, x_max, y_min, y_max, WIDTH, HEIGHT)
+            }
+        };
+        if window.is_key_pressed(Key::Backspace, KeyRepeat::No) {
+            if let Some((x, y)) = window.get_mouse_pos(minifb::MouseMode::Discard) { 
+                zoom(x, y, &mut x_min, &mut x_max, &mut y_min, &mut y_max, -0.5);
+                buffer = update_buffer(x_min, x_max, y_min, y_max, WIDTH, HEIGHT)
             }
         };
 
@@ -70,4 +66,21 @@ fn main() {
             .update_with_buffer(&buffer, WIDTH, HEIGHT)
             .unwrap();
     }
+}
+
+fn update_buffer(x_min: f64, x_max: f64, y_min: f64, y_max: f64, width: usize, height: usize) -> Vec<u32> {
+    let image: image::ImageBuffer<Rgb<u8>, Vec<u8>> = mandelbrot(x_min, x_max, y_min, y_max, width as u32, height as u32);
+
+    let mut buffer: Vec<u32> = vec![0; width * height];
+
+    for y in 0..height {
+        for x in 0..width {
+            let pixel_value: &Rgb<u8> = image.get_pixel(x as u32, y as u32);
+            let color: u32 = ((pixel_value[0] as u32) << 16) | ((pixel_value[1] as u32) << 8) | pixel_value[2] as u32;
+
+            buffer[y * width + x] = color;
+        }
+    }
+
+    buffer
 }

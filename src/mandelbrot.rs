@@ -56,5 +56,6 @@ pub fn mandelbrot(re_start: f64, re_end: f64, im_start: f64, im_end: f64, width:
 
         *pixel = is_mandel(cx, cy);
     };
+    println!("Done");
     image
 }
