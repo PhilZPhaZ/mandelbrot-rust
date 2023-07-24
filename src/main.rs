@@ -1,73 +1,76 @@
-use image::{Rgb, ImageBuffer, RgbImage};
+mod mandelbrot;
 
-const WIDTH: u32 = 600;
-const HEIGHT: u32 = 400;
-const MAX_ITER: usize = 200;
+use mandelbrot::mandelbrot;
+use minifb::{Window, WindowOptions, Key, KeyRepeat};
+use image::Rgb;
 
-const RE_START: f64 = -2.0;
-const RE_END: f64 = 1.0;
-const IM_START: f64 = 1.0;
-const IM_END: f64 = -1.0;
+const WIDTH: usize = 1200;
+const HEIGHT: usize = 800;
+const ZOOM_FACTOR: f64 = 0.5;
 
-const COLOR_PALETTE: [(u8, u8, u8); 16] = [
-   ( 66,  30,  15),
-   ( 25,   7,  26),
-   (  9,   1,  47),
-   (  4,   4,  73),
-   (  0,   7, 100),
-   ( 12,  44, 138),
-   ( 24,  82, 177),
-   ( 57, 125, 209),
-   (134, 181, 229),
-   (211, 236, 248),
-   (241, 233, 191),
-   (248, 201,  95),
-   (255, 170,   0),
-   (204, 128,   0),
-   (153,  87,   0),
-   (106,  52,   3)
-];
+fn zoom(x: f32, y: f32, x_min: &mut f64, x_max: &mut f64, y_min: &mut f64, y_max: &mut f64) {
+    let width: f64 = *x_max - *x_min;
+    let height: f64 = *y_max - *y_min;
+    let x_percent: f64 = x as f64 / WIDTH as f64;
+    let y_percent: f64 = y as f64 / HEIGHT as f64;
 
-fn is_mandel(cx: f64, cy: f64) -> Rgb<u8> {
-    let mut x: f64 = 0.0;
-    let mut y: f64 = 0.0;
-    let mut iter: usize = 0;
-
-    while x * x + y * y <= 4.0 && iter < MAX_ITER {
-        let xtemp: f64 = x*x - y*y + cx;
-        y = 2.0*x*y + cy;
-        x = xtemp;
-
-        iter += 1;
-    }
-
-    // let color_value: u8 = 255 - (iter as f64 * 255.0 / MAX_ITER as f64) as u8;
-    // Rgb([color_value, color_value, color_value])
-    if iter == MAX_ITER {
-        Rgb([0, 0, 0])
-    } else {
-        let color_i: u8 = (iter % 16) as u8;
-
-        let color: (u8, u8, u8) = COLOR_PALETTE[color_i as usize];
-        
-        Rgb([color.0, color.1, color.2])
-    }
+    *x_min += width * x_percent * ZOOM_FACTOR;
+    *x_max -= width * (1.0 - x_percent) * ZOOM_FACTOR;
+    *y_min += height * y_percent * ZOOM_FACTOR;
+    *y_max -= height * (1.0 - y_percent) * ZOOM_FACTOR;
 }
 
 fn main() {
-    let mut image: RgbImage = ImageBuffer::new(WIDTH, HEIGHT);
+    let mut x_min: f64 = -2.0;
+    let mut x_max: f64 = 1.0;
+    let mut y_min: f64 = -1.0;
+    let mut y_max: f64 = 1.0;
 
-    for (x, y, pixel) in image.enumerate_pixels_mut() {
-        let cx: f64 = RE_START + (x as f64 / WIDTH as f64) * (RE_END - RE_START);
-        let cy: f64 = IM_START + (y as f64 / HEIGHT as f64) * (IM_END - IM_START);
+    let image = mandelbrot(x_min, x_max, y_min, y_max, WIDTH as u32, HEIGHT as u32);
 
-        *pixel = is_mandel(cx, cy);
+    let mut buffer: Vec<u32> = vec![0; WIDTH * HEIGHT];
+
+    for y in 0..HEIGHT {
+        for x in 0..WIDTH {
+            let pixel_value: &Rgb<u8> = image.get_pixel(x as u32, y as u32);
+            let color: u32 = ((pixel_value[0] as u32) << 16) | ((pixel_value[1] as u32) << 8) | pixel_value[2] as u32;
+
+            buffer[y * WIDTH + x] = color;
+        }
     }
 
-    
-    // Sauvegardez l'image dans un fichier (exemple : "mandelbrot.png")
-    match image.save("mandelbrot.png") {
-        Ok(_) => println!("L'image a été sauvegardée avec succès."),
-        Err(e) => eprintln!("Erreur lors de la sauvegarde de l'image : {:?}", e),
+    let mut window = Window::new(
+        "Test",
+        WIDTH, 
+        HEIGHT, 
+        WindowOptions::default()
+    )
+    .unwrap_or_else(|e|{
+        panic!("{}", e);
+    });
+
+    while window.is_open() && !window.is_key_down(Key::Escape) {
+        if window.is_key_pressed(Key::Space, KeyRepeat::No) {
+            if let Some((x, y)) = window.get_mouse_pos(minifb::MouseMode::Discard) { 
+                zoom(x, y, &mut x_min, &mut x_max, &mut y_min, &mut y_max);
+
+                let image = mandelbrot(x_min, x_max, y_min, y_max, WIDTH as u32, HEIGHT as u32);
+
+                for y in 0..HEIGHT {
+                    for x in 0..WIDTH {
+                        let pixel_value: &Rgb<u8> = image.get_pixel(x as u32, y as u32);
+                        let color: u32 = ((pixel_value[0] as u32) << 16) | ((pixel_value[1] as u32) << 8) | pixel_value[2] as u32;
+            
+                        buffer[y * WIDTH + x] = color;
+                    }
+                }
+            }
+        };
+
+
+
+        window
+            .update_with_buffer(&buffer, WIDTH, HEIGHT)
+            .unwrap();
     }
 }
