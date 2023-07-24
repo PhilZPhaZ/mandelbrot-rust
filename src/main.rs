@@ -1,23 +1,22 @@
-mod mandelbrot;
+mod testing;
 
-use mandelbrot::mandelbrot;
+use testing::mandelbrot;
 use minifb::{Window, WindowOptions, Key, KeyRepeat};
 use image::Rgb;
 
 const WIDTH: usize = 1200;
 const HEIGHT: usize = 800;
-const ZOOM_FACTOR: f64 = 0.5;
 
-fn zoom(x: f32, y: f32, x_min: &mut f64, x_max: &mut f64, y_min: &mut f64, y_max: &mut f64) {
+fn zoom(x: f32, y: f32, x_min: &mut f64, x_max: &mut f64, y_min: &mut f64, y_max: &mut f64, zoom_factor: f64) {
     let width: f64 = *x_max - *x_min;
     let height: f64 = *y_max - *y_min;
     let x_percent: f64 = x as f64 / WIDTH as f64;
     let y_percent: f64 = y as f64 / HEIGHT as f64;
 
-    *x_min += width * x_percent * ZOOM_FACTOR;
-    *x_max -= width * (1.0 - x_percent) * ZOOM_FACTOR;
-    *y_min += height * y_percent * ZOOM_FACTOR;
-    *y_max -= height * (1.0 - y_percent) * ZOOM_FACTOR;
+    *x_min += width * x_percent * zoom_factor;
+    *x_max -= width * (1.0 - x_percent) * zoom_factor;
+    *y_min += height * y_percent * zoom_factor;
+    *y_max -= height * (1.0 - y_percent) * zoom_factor;
 }
 
 fn main() {
@@ -26,7 +25,7 @@ fn main() {
     let mut y_min: f64 = -1.0;
     let mut y_max: f64 = 1.0;
 
-    let image = mandelbrot(x_min, x_max, y_min, y_max, WIDTH as u32, HEIGHT as u32);
+    let image: image::ImageBuffer<Rgb<u8>, Vec<u8>> = mandelbrot(x_min, x_max, y_min, y_max, WIDTH as u32, HEIGHT as u32);
 
     let mut buffer: Vec<u32> = vec![0; WIDTH * HEIGHT];
 
@@ -52,7 +51,7 @@ fn main() {
     while window.is_open() && !window.is_key_down(Key::Escape) {
         if window.is_key_pressed(Key::Space, KeyRepeat::No) {
             if let Some((x, y)) = window.get_mouse_pos(minifb::MouseMode::Discard) { 
-                zoom(x, y, &mut x_min, &mut x_max, &mut y_min, &mut y_max);
+                zoom(x, y, &mut x_min, &mut x_max, &mut y_min, &mut y_max, 0.5);
 
                 let image = mandelbrot(x_min, x_max, y_min, y_max, WIDTH as u32, HEIGHT as u32);
 
@@ -66,8 +65,6 @@ fn main() {
                 }
             }
         };
-
-
 
         window
             .update_with_buffer(&buffer, WIDTH, HEIGHT)

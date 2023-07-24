@@ -1,7 +1,6 @@
 use image::{Rgb, ImageBuffer, RgbImage};
 
 const MAX_ITER: usize = 200;
-
 const COLOR_PALETTE: [(u8, u8, u8); 16] = [
    ( 66,  30,  15),
    ( 25,   7,  26),
@@ -47,14 +46,20 @@ fn is_mandel(cx: f64, cy: f64) -> Rgb<u8> {
     }
 }
 
+
 pub fn mandelbrot(re_start: f64, re_end: f64, im_start: f64, im_end: f64, width: u32, height: u32) -> RgbImage {
     let mut image: RgbImage = ImageBuffer::new(width, height);
 
-    for (x, y, pixel) in image.enumerate_pixels_mut() {
-        let cx: f64 = re_start + (x as f64 / width as f64) * (re_end - re_start);
-        let cy: f64 = im_start + (y as f64 / height as f64) * (im_end - im_start);
-
-        *pixel = is_mandel(cx, cy);
-    };
+    // Utilisation de par_iter_mut() pour paralléliser la boucle
+    image
+        .enumerate_pixels_mut()
+        .into_iter()
+        .for_each(|(x, y, pixel)| {
+            let cx: f64 = re_start + (x as f64 / width as f64) * (re_end - re_start);
+            let cy: f64 = im_start + (y as f64 / height as f64) * (im_end - im_start);
+    
+            *pixel = is_mandel(cx, cy);
+        });
+    
     image
 }
