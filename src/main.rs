@@ -4,8 +4,8 @@ use image::Rgb;
 use mandelbrot::mandelbrot;
 use minifb::{Key, KeyRepeat, Window, WindowOptions};
 
-const WIDTH: usize = 600;
-const HEIGHT: usize = 400;
+const WIDTH: usize = 1200;
+const HEIGHT: usize = 800;
 
 fn zoom(
     x: f32,
