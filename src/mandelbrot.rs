@@ -1,6 +1,8 @@
 use image::{ImageBuffer, Rgb, RgbImage};
+use std::thread;
+use std::sync::{Arc, Mutex};
 
-const MAX_ITER: usize = 200;
+const MAX_ITER: usize = 500;
 
 const COLOR_PALETTE: [(u8, u8, u8); 16] = [
     (66, 30, 15),
@@ -48,7 +50,7 @@ fn is_mandel(cx: f64, cy: f64) -> Rgb<u8> {
             iter += 1;
         }
 
-        if iter == MAX_ITER {
+        if iter >= MAX_ITER {
             Rgb([0, 0, 0])
         } else {
             let log_zn: f64 = (x * x + y * y).ln();
@@ -85,13 +87,46 @@ pub fn mandelbrot(
     width: u32,
     height: u32,
 ) -> RgbImage {
-    let mut image: RgbImage = ImageBuffer::new(width, height);
+    //let mut image: RgbImage = ImageBuffer::new(width, height);
+    let image: Arc<Mutex<RgbImage>> = Arc::new(Mutex::new(ImageBuffer::new(width, height)));
 
+    let num_threads = 1000;
+    let rows_per_thread = height / num_threads as u32;
+
+    let handles: Vec<_> = (0..num_threads).map(|thread_id| {
+        let start_y = thread_id * rows_per_thread;
+        let end_y = if thread_id == num_threads - 1 {
+            height
+        } else {
+            start_y + rows_per_thread
+        };
+
+        // let mut local_image = image.clone();
+        let shared_image = Arc::clone(&image);
+        thread::spawn(move || {
+            let mut local_image = shared_image.lock().unwrap();
+            for y in start_y..end_y {
+                for x in 0..width {
+                    let cx: f64 = re_start + (x as f64 / width as f64) * (re_end - re_start);
+                    let cy: f64 = im_start + (y as f64 / height as f64) * (im_end - im_start);
+                    let color = is_mandel(cx, cy);
+                    local_image.put_pixel(x, y, color);
+                }
+            }
+        })
+    }).collect();
+
+    for handle in handles {
+        handle.join().expect("Thread panicked!");
+    }
+
+    /*
     for (x, y, pixel) in image.enumerate_pixels_mut() {
         let cx: f64 = re_start + (x as f64 / width as f64) * (re_end - re_start);
         let cy: f64 = im_start + (y as f64 / height as f64) * (im_end - im_start);
 
         *pixel = is_mandel(cx, cy);
     }
-    image
+    */
+    Arc::try_unwrap(image).unwrap().into_inner().unwrap()
 }
